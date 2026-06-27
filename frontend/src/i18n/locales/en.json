@@ -2,6 +2,7 @@
   "app": { "title": "ERP Platform" },
   "nav": {
     "dashboard": "Dashboard",
+    "store": "Store",
     "products": "Products",
     "invoices": "Invoices",
     "customers": "Customers",
@@ -111,5 +112,13 @@
     "UNPAID": "Unpaid",
     "PAID": "Paid",
     "CANCELLED": "Cancelled"
+  },
+  "store": {
+    "title": "Store",
+    "cart": "Cart",
+    "cartEmpty": "Cart is empty — tap a product to add it",
+    "checkout": "Checkout",
+    "invoiceCreated": "Invoice created",
+    "outOfStock": "Out of stock"
   }
 }

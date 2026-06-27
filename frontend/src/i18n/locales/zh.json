@@ -2,6 +2,7 @@
   "app": { "title": "ERP 平台" },
   "nav": {
     "dashboard": "仪表板",
+    "store": "门店",
     "products": "产品",
     "invoices": "发票",
     "customers": "客户",
@@ -111,5 +112,13 @@
     "UNPAID": "未付",
     "PAID": "已付",
     "CANCELLED": "已取消"
+  },
+  "store": {
+    "title": "门店",
+    "cart": "购物车",
+    "cartEmpty": "购物车为空 — 点击商品即可添加",
+    "checkout": "结账",
+    "invoiceCreated": "发票已创建",
+    "outOfStock": "缺货"
   }
 }
