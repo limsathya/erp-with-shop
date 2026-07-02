@@ -80,7 +80,13 @@ npm install
 npm run dev                   # app at http://localhost:5173
 ```
 
-Open **http://localhost:5173** and sign in:
+Open **http://localhost:5173** — the storefront loads first.
+
+**Customer sign-in** (shop): click Sign in on the shop header, or go to
+`/shop/login`.
+
+**Staff / Manager / Admin sign-in** (ERP): click **Staff login →** in the footer,
+or go to `/login`:
 
 | Role  | Email             | Password   |
 |-------|-------------------|------------|
@@ -90,10 +96,22 @@ Open **http://localhost:5173** and sign in:
 > The **first account** ever registered becomes `ADMIN`. After seeding, use the
 > credentials above.
 
+### Role-based ERP routes
+
+- **Staff**: POS (`/store`), invoices, customers, staff dashboard
+- **Manager**: everything Staff can do + products, suppliers, stores, visits
+- **Admin**: everything + settings, user management (`/users`)
+
 ---
 
 ## Features mapped to your requirements
 
+- **Online store** — public storefront at `/` with product grid, categories,
+  product detail, cart, guest + customer checkout, order history, and customer
+  dashboard (`/shop/dashboard`). Registered customers can pay open orders with
+  KHQR (`/shop/orders/:id`).
+- **Role dashboards** — `/dashboard` shows a different view for Admin, Manager,
+  and Staff. Admins can manage users at `/users`.
 - **shadcn/ui** — components are hand-written under `frontend/src/components/ui`
   (the CLI needs network access; these are the same files it would generate).
 - **Dark / light mode** — `theme-provider.tsx` + CSS variables in `index.css`;
@@ -147,10 +165,20 @@ Open **http://localhost:5173** and sign in:
 ## Common API routes
 
 ```
-POST   /api/auth/register            POST /api/auth/login   GET /api/auth/me
+# Auth & users
+POST   /api/auth/register            POST /api/auth/login    GET /api/auth/me
+GET    /api/auth/users               POST /api/auth/users    (admin only)
+
+# ERP
 GET    /api/products                 POST /api/products      (multipart: image)
 POST   /api/products/:id/stock       (inventory movement)
 GET    /api/invoices                 POST /api/invoices      PATCH /api/invoices/:id/status
 POST   /api/payments/khqr            GET  /api/payments/status/:md5
 GET    /api/dashboard                POST /api/upload        (multipart: file)
+
+# Public shop
+GET    /api/shop/products            GET /api/shop/categories
+GET    /api/shop/products/:id        POST /api/shop/orders
+GET    /api/shop/orders              GET /api/shop/orders/:id
+POST   /api/shop/orders/:id/pay/khqr GET /api/shop/orders/pay/status/:md5
 ```

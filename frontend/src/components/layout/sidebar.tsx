@@ -1,20 +1,37 @@
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { LayoutDashboard, ShoppingCart, Package, FileText, Users, Truck, Settings } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Store, Package, FileText, Users, Truck, Settings, Calendar, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
+import type { User } from "@/context/auth-context";
 
-export const navItems = [
-  { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
+type NavItem = {
+  to: string;
+  labelKey: string;
+  icon: React.ElementType;
+  end?: boolean;
+  roles?: User["role"][];
+};
+
+export const allNavItems: NavItem[] = [
+  { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
   { to: "/store", labelKey: "nav.store", icon: ShoppingCart },
-  { to: "/products", labelKey: "nav.products", icon: Package },
   { to: "/invoices", labelKey: "nav.invoices", icon: FileText },
   { to: "/customers", labelKey: "nav.customers", icon: Users },
-  { to: "/suppliers", labelKey: "nav.suppliers", icon: Truck },
-  { to: "/settings", labelKey: "nav.settings", icon: Settings },
+  { to: "/visits", labelKey: "nav.visits", icon: Calendar, roles: ["MANAGER", "ADMIN"] },
+  { to: "/products", labelKey: "nav.products", icon: Package, roles: ["MANAGER", "ADMIN"] },
+  { to: "/stores", labelKey: "nav.stores", icon: Store, roles: ["MANAGER", "ADMIN"] },
+  { to: "/suppliers", labelKey: "nav.suppliers", icon: Truck, roles: ["MANAGER", "ADMIN"] },
+  { to: "/users", labelKey: "nav.users", icon: ShieldCheck, roles: ["ADMIN"] },
+  { to: "/settings", labelKey: "nav.settings", icon: Settings, roles: ["ADMIN"] },
 ];
 
 export function Sidebar() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const role = user?.role ?? "STAFF";
+
+  const navItems = allNavItems.filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-card">

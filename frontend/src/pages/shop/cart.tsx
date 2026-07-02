@@ -56,7 +56,9 @@ export default function ShopCartPage() {
     onSuccess: (res) => {
       clear();
       toast.success(`Order ${res.data.number} placed! We'll be in touch.`);
-      navigate("/shop");
+      navigate("/shop/order-success", {
+        state: { id: res.data.id, number: res.data.number, total: Number(res.data.total) },
+      });
     },
     onError: (e) => toast.error(shopApiError(e)),
   });

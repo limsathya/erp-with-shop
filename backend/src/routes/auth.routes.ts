@@ -9,7 +9,7 @@ import {
   verifyRefreshToken,
   revokeRefreshToken,
 } from "../utils/jwt.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, authorize } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -100,6 +100,46 @@ router.get(
     const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
     if (!user) throw new HttpError(404, "User not found");
     res.json({ user: publicUser(user) });
+  })
+);
+
+router.get(
+  "/users",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(async (_req, res) => {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
+    });
+    res.json(users);
+  })
+);
+
+const createUserInput = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(6),
+  role: z.enum(["ADMIN", "MANAGER", "STAFF"]),
+});
+
+router.post(
+  "/users",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(async (req, res) => {
+    const data = createUserInput.parse(req.body);
+    const existing = await prisma.user.findUnique({ where: { email: data.email.toLowerCase() } });
+    if (existing) throw new HttpError(409, "A user with this email already exists");
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email.toLowerCase(),
+        password: await hashPassword(data.password),
+        role: data.role,
+      },
+    });
+    res.status(201).json(publicUser(user));
   })
 );
 

@@ -3,10 +3,13 @@
   "nav": {
     "dashboard": "Dashboard",
     "store": "Store",
+    "stores": "Stores",
+    "visits": "Visits",
     "products": "Products",
     "invoices": "Invoices",
     "customers": "Customers",
     "suppliers": "Suppliers",
+    "users": "Users",
     "settings": "Settings",
     "logout": "Log out"
   },

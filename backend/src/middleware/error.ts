@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
-import { Prisma } from "@prisma/client";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { HttpError } from "../utils/asyncHandler.js";
 
 export function notFound(_req: Request, res: Response) {
@@ -24,7 +24,7 @@ export function errorHandler(
     return res.status(err.status).json({ error: err.message });
   }
 
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  if (err instanceof PrismaClientKnownRequestError) {
     if (err.code === "P2002") {
       const target = (err.meta?.target as string[] | undefined)?.join(", ");
       return res.status(409).json({ error: `Already exists${target ? `: ${target}` : ""}` });

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -27,19 +27,7 @@ import {
 } from "@/components/ui/select";
 import { api, apiError } from "@/lib/api";
 import { formatMoney } from "@/lib/utils";
-
-interface Product {
-  id: string;
-  sku: string;
-  name: string;
-  nameKm?: string;
-  nameZh?: string;
-  price: string;
-  stock: number;
-  lowStockAt: number;
-  imageUrl?: string | null;
-  category?: { name: string } | null;
-}
+import type { Product, Customer, Store as StoreType } from "@/types";
 
 interface CartItem {
   product: Product;
@@ -56,14 +44,30 @@ export default function StorePage() {
   const [discount, setDiscount] = useState("0");
   const [tax, setTax] = useState("0");
   const [currency, setCurrency] = useState<"USD" | "KHR">("USD");
+  const [customerId, setCustomerId] = useState<string>("walk-in");
+  const [storeId, setStoreId] = useState<string>("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["products", search],
     queryFn: async () =>
       (await api.get("/products", { params: { search, pageSize: 100 } })).data,
   });
+  const { data: customerData } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => (await api.get("/customers")).data as Customer[],
+  });
+  const { data: storeData } = useQuery({
+    queryKey: ["stores"],
+    queryFn: async () => (await api.get("/stores")).data as StoreType[],
+  });
 
   const products: Product[] = data?.items ?? [];
+  const customers: Customer[] = customerData ?? [];
+  const stores: StoreType[] = storeData ?? [];
+
+  useEffect(() => {
+    if (stores.length && !storeId) setStoreId(stores[0].id);
+  }, [stores, storeId]);
 
   const addToCart = (product: Product) => {
     if (product.stock === 0) return;
@@ -104,6 +108,8 @@ export default function StorePage() {
   const checkout = useMutation({
     mutationFn: () =>
       api.post("/invoices", {
+        customerId: customerId === "walk-in" ? null : customerId,
+        storeId: storeId || null,
         currency,
         discount: Number(discount || 0),
         tax: Number(tax || 0),
@@ -120,6 +126,8 @@ export default function StorePage() {
       setCart([]);
       setDiscount("0");
       setTax("0");
+      setCustomerId("walk-in");
+      setStoreId(stores[0]?.id ?? "");
       navigate(`/invoices/${res.data.id}`);
     },
     onError: (e) => toast.error(apiError(e)),
@@ -304,6 +312,41 @@ export default function StorePage() {
           {/* Totals + checkout */}
           {cart.length > 0 && (
             <CardFooter className="flex flex-col gap-3 border-t p-3">
+              {/* Customer */}
+              <div className="flex w-full items-center justify-between">
+                <span className="text-xs text-muted-foreground">Customer</span>
+                <Select value={customerId} onValueChange={setCustomerId}>
+                  <SelectTrigger className="h-7 w-44 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="walk-in">Walk-in</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Store */}
+              <div className="flex w-full items-center justify-between">
+                <span className="text-xs text-muted-foreground">Store</span>
+                <Select value={storeId} onValueChange={setStoreId}>
+                  <SelectTrigger className="h-7 w-44 text-xs">
+                    <SelectValue placeholder="Select store" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Currency */}
               <div className="flex w-full items-center justify-between">
                 <span className="text-xs text-muted-foreground">{t("invoices.currency")}</span>

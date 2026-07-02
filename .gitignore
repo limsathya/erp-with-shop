@@ -7,3 +7,5 @@ build/
 .DS_Store
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/prisma/*.js
+backend/prisma/*.js.map

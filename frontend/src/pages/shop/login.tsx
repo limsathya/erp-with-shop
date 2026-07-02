@@ -13,9 +13,14 @@ import { useShopAuth } from "@/context/shop-auth-context";
 import { shopApiError } from "@/lib/shop-api";
 
 export default function ShopLoginPage() {
-  const { login, register } = useShopAuth();
+  const { customer, login, register } = useShopAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  if (customer) {
+    navigate("/shop/dashboard", { replace: true });
+    return null;
+  }
   const [tab, setTab] = useState("login");
 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -37,7 +42,7 @@ export default function ShopLoginPage() {
     try {
       await login(loginForm.email, loginForm.password);
       toast.success("Welcome back!");
-      navigate(-1);
+      navigate("/shop/dashboard");
     } catch (err) {
       toast.error(shopApiError(err));
     } finally {
@@ -56,7 +61,7 @@ export default function ShopLoginPage() {
         regForm.phone || undefined
       );
       toast.success("Account created! Welcome.");
-      navigate(-1);
+      navigate("/shop/dashboard");
     } catch (err) {
       toast.error(shopApiError(err));
     } finally {

@@ -74,9 +74,10 @@ export default function ShopOrdersPage() {
       ) : (
         <div className="space-y-3">
           {orders.map((order) => (
-            <div
+            <Link
               key={order.id}
-              className="flex items-start justify-between gap-4 rounded-xl border bg-card p-4"
+              to={`/shop/orders/${order.id}`}
+              className="flex items-start justify-between gap-4 rounded-xl border bg-card p-4 transition-shadow hover:shadow-md"
             >
               <div className="flex items-start gap-3">
                 <Package className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
@@ -104,7 +105,7 @@ export default function ShopOrdersPage() {
                   {order.status}
                 </Badge>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

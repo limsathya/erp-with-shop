@@ -27,17 +27,8 @@ import {
 } from "@/components/ui/select";
 import { api, apiError } from "@/lib/api";
 import { formatMoney, formatDate } from "@/lib/utils";
+import type { Product, Customer } from "@/types";
 
-interface Product {
-  id: string;
-  name: string;
-  price: string;
-  stock: number;
-}
-interface Customer {
-  id: string;
-  name: string;
-}
 interface InvoiceRow {
   id: string;
   number: string;

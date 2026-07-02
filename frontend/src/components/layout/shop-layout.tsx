@@ -1,14 +1,31 @@
-import { Link, Outlet } from "react-router-dom";
-import { ShoppingCart, User, LogOut, Store } from "lucide-react";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { ShoppingCart, User, LogOut, Store, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ShopAuthProvider, useShopAuth } from "@/context/shop-auth-context";
 import { CartProvider, useCart } from "@/context/cart-context";
+import { shopApi } from "@/lib/shop-api";
+import type { Category } from "@/types";
 
 // ── Header component (lives inside the providers so it can read context) ──
 
 function ShopHeader() {
   const { customer, logout } = useShopAuth();
   const { count } = useCart();
+  const navigate = useNavigate();
+
+  const { data: categoryData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["shop-categories"],
+    queryFn: async () => (await shopApi.get("/categories")).data,
+  });
+  const categories: Category[] = categoryData?.items ?? [];
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -21,6 +38,35 @@ function ShopHeader() {
           <Store className="h-5 w-5 text-primary" />
           <span className="text-base">ERP Store</span>
         </Link>
+
+        {/* Categories */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="hidden gap-1 sm:flex">
+              Categories
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {categoriesLoading ? (
+              <div className="space-y-2 p-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ) : categories.length === 0 ? (
+              <DropdownMenuItem disabled>No categories</DropdownMenuItem>
+            ) : (
+              categories.map((c) => (
+                <DropdownMenuItem
+                  key={c.id}
+                  onClick={() => navigate(`/shop?categoryId=${c.id}`)}
+                >
+                  {c.name}
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -41,7 +87,7 @@ function ShopHeader() {
         {customer ? (
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/shop/orders">
+              <Link to="/shop/dashboard">
                 <User className="mr-1.5 h-4 w-4" />
                 {customer.name.split(" ")[0]}
               </Link>

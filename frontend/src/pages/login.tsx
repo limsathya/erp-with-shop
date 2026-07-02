@@ -14,9 +14,14 @@ import { apiError } from "@/lib/api";
 
 export default function LoginPage() {
   const { t } = useTranslation();
-  const { login, register } = useAuth();
+  const { user, login, register } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "register">("login");
+
+  if (user) {
+    navigate("/dashboard", { replace: true });
+    return null;
+  }
   const [name, setName] = useState("");
   const [email, setEmail] = useState("admin@erp.local");
   const [password, setPassword] = useState("admin1234");
@@ -27,7 +32,7 @@ export default function LoginPage() {
     try {
       if (mode === "login") await login(email, password);
       else await register(name, email, password);
-      navigate("/");
+      navigate("/dashboard");
     } catch (e) {
       toast.error(apiError(e));
     } finally {

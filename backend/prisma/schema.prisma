@@ -53,17 +53,43 @@ enum PurchaseStatus {
   CANCELLED
 }
 
+enum VisitStatus {
+  SCHEDULED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+}
+
+model Store {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  address   String?   @db.Text
+  phone     String?
+  email     String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  users     User[]
+  invoices  Invoice[]
+  visits    Visit[]
+}
+
 model User {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  password     String
-  role         Role      @default(STAFF)
-  avatarUrl    String?
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  invoices     Invoice[]
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(STAFF)
+  avatarUrl String?
+  active    Boolean   @default(true)
+  storeId   String?
+  store     Store?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  invoices  Invoice[]
+
+  @@index([storeId])
 }
 
 model Category {
@@ -113,11 +139,30 @@ model Customer {
   id        String    @id @default(cuid())
   name      String
   phone     String?
-  email     String?
+  email     String?   @unique
   address   String?   @db.Text
+  password  String?   // for public shop login; ERP customers can leave null
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   invoices  Invoice[]
+  visits    Visit[]
+}
+
+model Visit {
+  id          String      @id @default(cuid())
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  storeId     String?
+  store       Store?      @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  status      VisitStatus @default(SCHEDULED)
+  scheduledAt DateTime
+  note        String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([customerId])
+  @@index([storeId])
+  @@index([status])
 }
 
 model Supplier {
@@ -163,6 +208,8 @@ model Invoice {
   number      String        @unique
   customerId  String?
   customer    Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  storeId     String?
+  store       Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
   currency    Currency      @default(USD)
   subtotal    Decimal       @db.Decimal(12, 2)
   discount    Decimal       @default(0) @db.Decimal(12, 2)
@@ -178,6 +225,7 @@ model Invoice {
   updatedAt   DateTime      @updatedAt
 
   @@index([customerId])
+  @@index([storeId])
   @@index([status])
 }
 

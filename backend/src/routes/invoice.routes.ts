@@ -30,7 +30,7 @@ router.get(
     const [items, total] = await Promise.all([
       prisma.invoice.findMany({
         where,
-        include: { customer: true, _count: { select: { items: true } } },
+        include: { customer: true, store: true, _count: { select: { items: true } } },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -49,6 +49,7 @@ router.get(
       where: { id: req.params.id },
       include: {
         customer: true,
+        store: true,
         items: { include: { product: true } },
         payments: true,
         createdBy: { select: { id: true, name: true } },
@@ -61,6 +62,7 @@ router.get(
 
 const invoiceInput = z.object({
   customerId: z.string().optional().nullable(),
+  storeId: z.string().optional().nullable(),
   currency: z.enum(["USD", "KHR"]).default("USD"),
   discount: z.coerce.number().nonnegative().default(0),
   tax: z.coerce.number().nonnegative().default(0),
@@ -81,6 +83,11 @@ router.post(
   authenticate,
   asyncHandler(async (req, res) => {
     const data = invoiceInput.parse(req.body);
+
+    if (data.storeId) {
+      const store = await prisma.store.findUnique({ where: { id: data.storeId } });
+      if (!store) throw new HttpError(400, "Store not found");
+    }
 
     const invoice = await prisma.$transaction(async (tx) => {
       const products = await tx.product.findMany({
@@ -111,6 +118,7 @@ router.post(
         data: {
           number,
           customerId: data.customerId || null,
+          storeId: data.storeId || null,
           currency: data.currency,
           subtotal,
           discount: data.discount,
@@ -120,7 +128,7 @@ router.post(
           createdById: req.user!.id,
           items: { create: itemRows },
         },
-        include: { items: true, customer: true },
+        include: { items: true, customer: true, store: true },
       });
 
       // Deduct stock and log an OUT movement per line.

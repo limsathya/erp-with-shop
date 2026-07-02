@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, ImageIcon, ShoppingCart, Plus, Check } from "lucide-react";
+import { Search, ImageIcon, ShoppingCart, Plus, Check, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,32 +10,36 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { shopApi } from "@/lib/shop-api";
 import { useCart } from "@/context/cart-context";
 import { formatMoney } from "@/lib/utils";
-
-interface ShopProduct {
-  id: string;
-  name: string;
-  nameKm?: string;
-  nameZh?: string;
-  price: string;
-  stock: number;
-  lowStockAt: number;
-  imageUrl?: string | null;
-  category?: { name: string } | null;
-}
+import type { Product, Category } from "@/types";
 
 export default function ShopHomePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
+  const [categoryId, setCategoryId] = useState<string | null>(searchParams.get("categoryId"));
   const { addItem, items: cartItems } = useCart();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["shop-products", search],
+  useEffect(() => {
+    const cat = searchParams.get("categoryId");
+    setCategoryId(cat);
+  }, [searchParams]);
+
+  const { data: productData, isLoading: productsLoading } = useQuery({
+    queryKey: ["shop-products", search, categoryId],
     queryFn: async () =>
-      (await shopApi.get("/products", { params: { search, pageSize: 48 } })).data,
+      (await shopApi.get("/products", { params: { search, categoryId, pageSize: 48 } })).data,
   });
 
-  const products: ShopProduct[] = data?.items ?? [];
+  const { data: categoryData } = useQuery({
+    queryKey: ["shop-categories"],
+    queryFn: async () => (await shopApi.get("/categories")).data,
+  });
 
-  const handleAdd = (p: ShopProduct) => {
+  const products: Product[] = productData?.items ?? [];
+  const categories: Category[] = categoryData?.items ?? [];
+
+  const handleAdd = (e: React.MouseEvent, p: Product) => {
+    e.preventDefault();
+    e.stopPropagation();
     addItem({
       productId: p.id,
       name: p.name,
@@ -49,24 +54,79 @@ export default function ShopHomePage() {
   return (
     <div className="space-y-8">
       {/* Hero */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Our Products</h1>
-        <p className="text-muted-foreground">Browse our full collection and order online.</p>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary/80 px-6 py-12 text-primary-foreground sm:px-10 sm:py-16">
+        <div className="relative z-10 max-w-xl space-y-4">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Welcome to ERP Store
+          </h1>
+          <p className="text-primary-foreground/90 sm:text-lg">
+            Browse our curated collection of premium coffee and equipment. Order online and pick up in store or arrange delivery.
+          </p>
+          <Button
+            asChild
+            variant="secondary"
+            size="lg"
+            className="mt-2 gap-2"
+          >
+            <Link to="/shop/cart">
+              Go to cart
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search products…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {/* Search + categories */}
+      <div className="space-y-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search products…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={categoryId === null ? "default" : "outline"}
+              onClick={() => {
+                setCategoryId(null);
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete("categoryId");
+                  return next;
+                });
+              }}
+            >
+              All
+            </Button>
+            {categories.map((c) => (
+              <Button
+                key={c.id}
+                size="sm"
+                variant={categoryId === c.id ? "default" : "outline"}
+                onClick={() => {
+                  setCategoryId(c.id);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("categoryId", c.id);
+                    return next;
+                  });
+                }}
+              >
+                {c.name}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Grid */}
-      {isLoading ? (
+      {/* Product grid */}
+      {productsLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-72 rounded-xl" />
@@ -84,17 +144,17 @@ export default function ShopHomePage() {
             const lowStock = p.stock <= p.lowStockAt && p.stock > 0;
 
             return (
-              <div
+              <Link
                 key={p.id}
-                className="flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md"
+                to={`/shop/products/${p.id}`}
+                className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md"
               >
-                {/* Image */}
                 <div className="relative aspect-square bg-muted">
                   {p.imageUrl ? (
                     <img
                       src={p.imageUrl}
                       alt={p.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
@@ -108,7 +168,6 @@ export default function ShopHomePage() {
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   {p.category && (
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -140,7 +199,7 @@ export default function ShopHomePage() {
                       size="sm"
                       variant={cartEntry ? "secondary" : "default"}
                       className="w-full gap-1.5"
-                      onClick={() => handleAdd(p)}
+                      onClick={(e) => handleAdd(e, p)}
                     >
                       {cartEntry ? (
                         <>
@@ -156,7 +215,7 @@ export default function ShopHomePage() {
                     </Button>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

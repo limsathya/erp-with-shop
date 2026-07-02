@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../config/prisma.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import { asyncHandler, HttpError } from "../utils/asyncHandler.js";
 import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
@@ -31,6 +31,10 @@ router.post(
   authenticate,
   asyncHandler(async (req, res) => {
     const data = input.parse(req.body);
+    if (data.email) {
+      const existing = await prisma.customer.findUnique({ where: { email: data.email } });
+      if (existing) throw new HttpError(409, "A customer with this email already exists");
+    }
     const customer = await prisma.customer.create({ data });
     res.status(201).json(customer);
   })
@@ -41,6 +45,12 @@ router.put(
   authenticate,
   asyncHandler(async (req, res) => {
     const data = input.partial().parse(req.body);
+    if (data.email) {
+      const existing = await prisma.customer.findFirst({
+        where: { email: data.email, NOT: { id: req.params.id } },
+      });
+      if (existing) throw new HttpError(409, "A customer with this email already exists");
+    }
     const customer = await prisma.customer.update({ where: { id: req.params.id }, data });
     res.json(customer);
   })

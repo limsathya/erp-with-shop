@@ -6,15 +6,21 @@ const prisma = new PrismaClient();
 async function main() {
   const password = await bcrypt.hash("admin1234", 10);
 
+  const store = await prisma.store.upsert({
+    where: { code: "MAIN" },
+    update: {},
+    create: { name: "Main Store", code: "MAIN", address: "Phnom Penh" },
+  });
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@erp.local" },
     update: {},
-    create: { name: "Admin", email: "admin@erp.local", password, role: "ADMIN" },
+    create: { name: "Admin", email: "admin@erp.local", password, role: "ADMIN", storeId: store.id },
   });
-  await prisma.user.upsert({
+  const staff = await prisma.user.upsert({
     where: { email: "staff@erp.local" },
     update: {},
-    create: { name: "Staff", email: "staff@erp.local", password, role: "STAFF" },
+    create: { name: "Staff", email: "staff@erp.local", password, role: "STAFF", storeId: store.id },
   });
 
   const beverages = await prisma.category.upsert({
@@ -62,6 +68,35 @@ async function main() {
     ],
     skipDuplicates: true,
   });
+
+  const seededCustomers = await prisma.customer.findMany({
+    where: { email: { in: ["dara@example.com", "mei@example.com"] } },
+  });
+  const dara = seededCustomers.find((c) => c.email === "dara@example.com");
+  const mei = seededCustomers.find((c) => c.email === "mei@example.com");
+
+  if (dara && !(await prisma.visit.findFirst({ where: { customerId: dara.id, note: "Tasting appointment" } }))) {
+    await prisma.visit.create({
+      data: {
+        customerId: dara.id,
+        storeId: store.id,
+        status: "SCHEDULED",
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        note: "Tasting appointment",
+      },
+    });
+  }
+  if (mei && !(await prisma.visit.findFirst({ where: { customerId: mei.id, note: "Equipment demo" } }))) {
+    await prisma.visit.create({
+      data: {
+        customerId: mei.id,
+        storeId: store.id,
+        status: "COMPLETED",
+        scheduledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        note: "Equipment demo",
+      },
+    });
+  }
 
   console.log("✅ Seed complete.");
   console.log("   Admin login → admin@erp.local / admin1234");

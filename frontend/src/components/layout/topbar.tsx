@@ -13,12 +13,14 @@ import {
 import { ModeToggle } from "@/components/mode-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@/context/auth-context";
-import { navItems } from "./sidebar";
+import { allNavItems } from "./sidebar";
 
 export function Topbar() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const role = user?.role ?? "STAFF";
+  const navItems = allNavItems.filter((item) => !item.roles || item.roles.includes(role));
 
   const initials = (user?.name || "?")
     .split(" ")
