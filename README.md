@@ -1,184 +1,139 @@
 # ERP Platform — KHQR · MariaDB · Redis · JWT
 
 A full-stack ERP with a Cambodia **KHQR** (Bakong) payment flow, inventory,
-invoicing with printing, image uploads, JWT auth, light/dark themes, and a
+invoicing, image uploads, JWT auth, light/dark themes, and a
 trilingual UI (**English · 中文 · ខ្មែរ**).
 
-```
+Built with **Next.js 14 App Router** — deploy to Vercel in one click.
+
+```text
 erp-platform/
-├── docker-compose.yml      # MariaDB + Redis (+ Adminer) for local dev
-├── backend/                # Express + TypeScript + Prisma + Redis + JWT + KHQR
-└── frontend/               # Vite + React + TypeScript + Tailwind + shadcn/ui
+├── app/                    # Next.js App Router (pages + API routes)
+│   ├── (erp)/              # ERP dashboard (Admin/Manager/Staff)
+│   ├── (shop)/             # Public storefront
+│   ├── api/                # REST API routes
+│   └── login/              # Staff login
+├── components/             # shadcn/ui + shared components
+├── lib/                    # Utilities (Prisma, JWT, KHQR, KV, auth)
+├── locales/                # i18n (en / zh / km)
+├── prisma/                 # Schema + seed
+└── public/                 # Static assets
 ```
 
 ## Tech stack
 
-| Layer      | Choices                                                                 |
-|------------|-------------------------------------------------------------------------|
-| Backend    | Node, Express, TypeScript, Prisma (MariaDB), ioredis, JWT, Multer, Zod  |
-| Frontend   | Vite, React, TypeScript, Tailwind v3, shadcn/ui, TanStack Query, i18next |
-| Database   | MariaDB 11 (via Prisma `mysql` provider)                                 |
-| Cache/auth | Redis (dashboard cache + revocable refresh-token store)                  |
-| Payments   | KHQR / Bakong — QR generated natively (EMVCo TLV + CRC-16)               |
-| Charts     | Recharts · **QR** via `qrcode.react`                                     |
+| Layer       | Choices                                                                     |
+|-------------|-----------------------------------------------------------------------------|
+| Framework   | Next.js 14 (App Router), React 18, TypeScript                               |
+| UI          | Tailwind CSS v3, shadcn/ui, Recharts                                        |
+| Data        | TanStack Query, Axios (auto-refresh JWT)                                    |
+| Database    | MariaDB / MySQL (via Prisma `mysql` provider)                               |
+| Cache/auth  | Upstash Redis (Vercel KV) — dashboard cache + refresh token store           |
+| File upload | Vercel Blob                                                                 |
+| Auth        | JWT (access + rotating refresh), jose (Edge-compatible)                     |
+| i18n        | i18next (English / 中文 / ខ្មែរ)                                          |
+| Payments    | KHQR / Bakong — QR generated natively (EMVCo TLV + CRC-16)                  |
 
 ---
 
-## Prerequisites
+## Quick start (local)
 
-- **Node.js 18+** (20+ recommended) and npm
-- **Docker** (easiest way to get MariaDB + Redis) — or your own local installs
-
-## 1. Start MariaDB + Redis
-
-From the project root:
+**Prerequisites**: Node.js 18+, MariaDB/MySQL, Redis (or Upstash)
 
 ```bash
-docker compose up -d
-```
-
-This launches MariaDB on `localhost:3306` (db `erp`, user `erp`, password
-`erp_password`), Redis on `localhost:6379`, and Adminer (a DB UI) on
-`http://localhost:8080`. To use your own MariaDB/Redis instead, just point
-`DATABASE_URL` / `REDIS_URL` in the backend `.env` at them.
-
-## 2. Backend
-
-```bash
-cd backend
-cp .env.example .env          # then edit secrets + KHQR settings (see below)
+# 1. Clone & install
+git clone <repo>
+cd erp-platform
 npm install
 
-npm run prisma:generate       # generate the Prisma client
-npm run prisma:migrate        # create the database tables
-npm run seed                  # sample products, customers, suppliers + users
+# 2. Set up environment
+cp .env.example .env
+# Edit .env with your DATABASE_URL, Redis credentials, and JWT secrets
 
-npm run dev                   # API at http://localhost:4000
+# 3. Database
+npm run prisma:migrate
+npm run seed
+
+# 4. Run
+npm run dev
+# App at http://localhost:3000
 ```
 
-Set at least these in `backend/.env`:
-
-```ini
-JWT_ACCESS_SECRET=<random string>
-JWT_REFRESH_SECRET=<another random string>
-# Your real Bakong account so the KHQR is payable:
-KHQR_BAKONG_ID=your_name@aclb
-KHQR_MERCHANT_NAME=Your Store
-```
-
-Generate a secret quickly:
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
-
-## 3. Frontend
-
-```bash
-cd frontend
-cp .env.example .env          # VITE_API_URL defaults to http://localhost:4000/api
-npm install
-npm run dev                   # app at http://localhost:5173
-```
-
-Open **http://localhost:5173** — the storefront loads first.
-
-**Customer sign-in** (shop): click Sign in on the shop header, or go to
-`/shop/login`.
-
-**Staff / Manager / Admin sign-in** (ERP): click **Staff login →** in the footer,
-or go to `/login`:
+### Default credentials (after seeding)
 
 | Role  | Email             | Password   |
 |-------|-------------------|------------|
-| Admin | admin@erp.local   | admin1234  |
-| Staff | staff@erp.local   | admin1234  |
+| Admin | `admin@erp.local` | admin1234  |
+| Staff | `staff@erp.local` | admin1234  |
 
-> The **first account** ever registered becomes `ADMIN`. After seeding, use the
-> credentials above.
+> The first registered account becomes `ADMIN`. After seeding, use the credentials above.
 
-### Role-based ERP routes
+### Role-based routes
 
 - **Staff**: POS (`/store`), invoices, customers, staff dashboard
-- **Manager**: everything Staff can do + products, suppliers, stores, visits
+- **Manager**: everything Staff + products, suppliers, stores, visits
 - **Admin**: everything + settings, user management (`/users`)
 
 ---
 
-## Features mapped to your requirements
+## Deploy to Vercel
 
-- **Online store** — public storefront at `/` with product grid, categories,
-  product detail, cart, guest + customer checkout, order history, and customer
-  dashboard (`/shop/dashboard`). Registered customers can pay open orders with
-  KHQR (`/shop/orders/:id`).
-- **Role dashboards** — `/dashboard` shows a different view for Admin, Manager,
-  and Staff. Admins can manage users at `/users`.
-- **shadcn/ui** — components are hand-written under `frontend/src/components/ui`
-  (the CLI needs network access; these are the same files it would generate).
-- **Dark / light mode** — `theme-provider.tsx` + CSS variables in `index.css`;
-  toggle in the top bar or Settings (light / dark / system).
-- **Cambodia KHQR** — `backend/src/utils/khqr.ts` builds the EMVCo payload with
-  a CRC-16 checksum; the frontend renders it (`khqr-dialog.tsx`) and polls for
-  payment. See the KHQR note below.
-- **MariaDB** — Prisma schema in `backend/prisma/schema.prisma`.
-- **Redis** — caches the dashboard and stores refresh-token IDs so sessions are
-  revocable (`backend/src/config/redis.ts`, `utils/jwt.ts`).
-- **ERP** — products, inventory movements, customers, suppliers, invoices,
-  payments, and a live dashboard.
-- **Dynamic interaction** — TanStack Query with auto-refetching (the dashboard
-  refreshes every 15s; KHQR status polls every 4s) and toasts.
-- **Frontend + backend** — separate apps, talking over a REST API.
-- **.env** — both apps ship `.env.example`; secrets/URLs are read from `.env`.
-- **Print invoice** — `invoice-view.tsx` + print styles in `index.css`
-  (`@media print`); click **Print**.
-- **Upload picture** — product images via Multer (`POST /api/products` with a
-  file field), served from `/uploads`.
-- **JWT auth** — access + rotating refresh tokens; axios auto-refreshes on 401.
-- **Fonts (EN / ZH / KM)** — Noto Sans, Noto Sans SC, and Noto Sans Khmer are
-  loaded in `index.html` and set as the font stack in `tailwind.config.js`.
+1. Push to GitHub
+2. Import in Vercel (framework auto-detected as Next.js)
+3. Add these environment variables:
+   - `DATABASE_URL` — your MySQL/MariaDB connection string
+   - `KV_REST_API_URL` + `KV_REST_API_TOKEN` — from Upstash Redis (Vercel Integration)
+   - `BLOB_READ_WRITE_TOKEN` — from Vercel Blob
+   - `JWT_ACCESS_SECRET` + `JWT_REFRESH_SECRET` — random strings
+   - Optional: `KHQR_*` / `BAKONG_*` for Bakong payments
+4. Run migrations against your remote DB, then `npm run seed`
+5. Deploy
+
+---
+
+## API routes
+
+```text
+# Auth & users
+POST   /api/auth/register      POST /api/auth/login        GET /api/auth/me
+GET    /api/auth/users         POST /api/auth/users         (admin only)
+POST   /api/auth/refresh       POST /api/auth/logout
+
+# ERP
+GET    /api/products           POST /api/products           (multipart: image)
+POST   /api/products/:id/stock GET    /api/products/:id     PUT /api/products/:id
+GET    /api/invoices           POST /api/invoices           PATCH /api/invoices/:id
+POST   /api/payments/khqr      GET  /api/payments/status/:md5
+POST   /api/payments/manual    GET  /api/dashboard          POST /api/upload
+GET    /api/customers          POST /api/customers          PUT/DELETE /api/customers/:id
+GET    /api/suppliers          POST /api/suppliers          PUT/DELETE /api/suppliers/:id
+GET    /api/stores             POST /api/stores             PUT/DELETE /api/stores/:id
+GET    /api/visits             POST /api/visits             PATCH /api/visits/:id/status
+
+# Public shop
+GET    /api/shop/products      GET /api/shop/categories
+GET    /api/shop/products/:id  POST /api/shop/orders        GET /api/shop/orders
+GET    /api/shop/orders/:id    POST /api/shop/orders/:id/pay/khqr
+GET    /api/shop/orders/pay/status/:md5
+POST   /api/shop/auth/register POST /api/shop/auth/login    GET /api/shop/auth/me
+```
 
 ---
 
 ## KHQR / Bakong notes
 
-- **Generating** the QR is fully local and needs no token — set `KHQR_BAKONG_ID`
-  to a real Bakong account (e.g. `your_name@aclb`) and the QR becomes payable in
-  any Bakong-enabled app.
-- **Verifying** payment server-side uses the Bakong Open API
-  (`POST /v1/check_transaction_by_md5`). Register at
+- **Generating** the QR is fully local — set `KHQR_BAKONG_ID` to a real Bakong
+  account (e.g. `your_name@aclb`) and the QR becomes payable in any Bakong app.
+- **Verifying** payment uses the Bakong Open API. Register at
   <https://api-bakong.nbc.gov.kh> for a token and set `BAKONG_API_TOKEN`.
-  Without a token, the QR still displays and you can settle invoices with the
-  **Cash / Card** buttons (recorded as manual payments).
-- The TLV mechanics and CRC are standard EMVCo; if a real wallet rejects a scan,
-  re-verify the merchant-account sub-tags against the latest NBC KHQR spec.
+- Without a token, the QR still displays and you can settle invoices with
+  **Cash / Card** buttons (manual payments).
 
-## A few implementation notes
+## Implementation notes
 
-- Money is stored as `DECIMAL(12,2)` in MariaDB. Prisma serialises decimals as
-  **strings** in JSON, so the frontend wraps amounts in `Number()` /
-  `formatMoney()` — keep that in mind when adding fields.
-- Dev servers run via `tsx` (backend) and Vite/esbuild (frontend), which execute
-  TypeScript without a blocking type-check, so `npm run dev` starts fast. Use
-  `npm run build` for a type-checked production build.
-- `prisma:migrate` requires the database to be reachable. If you only want to
-  push the schema without migration history, use `npm run prisma:push`.
-
-## Common API routes
-
-```
-# Auth & users
-POST   /api/auth/register            POST /api/auth/login    GET /api/auth/me
-GET    /api/auth/users               POST /api/auth/users    (admin only)
-
-# ERP
-GET    /api/products                 POST /api/products      (multipart: image)
-POST   /api/products/:id/stock       (inventory movement)
-GET    /api/invoices                 POST /api/invoices      PATCH /api/invoices/:id/status
-POST   /api/payments/khqr            GET  /api/payments/status/:md5
-GET    /api/dashboard                POST /api/upload        (multipart: file)
-
-# Public shop
-GET    /api/shop/products            GET /api/shop/categories
-GET    /api/shop/products/:id        POST /api/shop/orders
-GET    /api/shop/orders              GET /api/shop/orders/:id
-POST   /api/shop/orders/:id/pay/khqr GET /api/shop/orders/pay/status/:md5
-```
+- Money is stored as `DECIMAL(12,2)`. Prisma serializes decimals as **strings**
+  in JSON — the frontend wraps them in `Number()` / `formatMoney()`.
+- Dev server runs via `next dev` with Turbopack. Use `npm run build` for a
+  type-checked production build.
+- `prisma:migrate` requires the database to be reachable. Use `npm run prisma:push`
+  to push schema without migration history.
